@@ -545,30 +545,9 @@ class FastSAMSegmentation(private val context: Context) {
     }
 
     private fun generateDemoMask(normalizedX: Float, normalizedY: Float): ByteArray {
-        Log.d(TAG, "Generating DEMO mask at ($normalizedX, $normalizedY)")
-        val mask = ByteArray(MODEL_INPUT_SIZE * MODEL_INPUT_SIZE)
-
-        val centerX = (normalizedX * MODEL_INPUT_SIZE).toInt()
-        val centerY = (normalizedY * MODEL_INPUT_SIZE).toInt()
-        val radiusX = MODEL_INPUT_SIZE / 3
-        val radiusY = MODEL_INPUT_SIZE / 3
-
-        var count = 0
-        for (y in 0 until MODEL_INPUT_SIZE) {
-            for (x in 0 until MODEL_INPUT_SIZE) {
-                val dx = (x - centerX).toFloat() / radiusX
-                val dy = (y - centerY).toFloat() / radiusY
-                // Use ellipse equation (dx^2 + dy^2 < 1) for circular/elliptical shape
-                // instead of rectangular (abs(dx) < 1 && abs(dy) < 1)
-                if (dx * dx + dy * dy < 1.0f) {
-                    mask[y * MODEL_INPUT_SIZE + x] = 255.toByte()
-                    count++
-                }
-            }
-        }
-
-        Log.d(TAG, "Demo mask created with $count pixels (elliptical)")
-        return mask
+        Log.d(TAG, "No valid segmentation mask at ($normalizedX, $normalizedY) - returning empty mask")
+        // Return empty mask - only show actual segmentation results, no demo/fallback shapes
+        return ByteArray(MODEL_INPUT_SIZE * MODEL_INPUT_SIZE)
     }
 
     fun release() {

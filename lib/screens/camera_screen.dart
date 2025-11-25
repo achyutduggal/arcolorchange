@@ -162,6 +162,13 @@ class _CameraScreenState extends State<CameraScreen> with WidgetsBindingObserver
         }
         debugPrint('Non-zero pixels in mask: $nonZeroCount');
 
+        // Only show mask if it has valid segmentation pixels
+        if (nonZeroCount == 0) {
+          debugPrint('Empty mask received - no segmentation found at tap point');
+          _showError('No segment found at tap point');
+          return;
+        }
+
         _maskWidth = 640;
         _maskHeight = 640;
 
