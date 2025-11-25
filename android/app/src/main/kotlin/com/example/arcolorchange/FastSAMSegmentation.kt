@@ -449,7 +449,7 @@ class FastSAMSegmentation(private val context: Context) {
         }
         Log.d(TAG, "  TempMask range: [$minVal, $maxVal]")
 
-        // Bounding box in mask coordinates
+        // Log bounding box info for debugging
         val scale = maskH.toFloat() / MODEL_INPUT_SIZE
         val x1 = ((detection.cx - detection.w / 2) * scale).toInt().coerceIn(0, maskW - 1)
         val y1 = ((detection.cy - detection.h / 2) * scale).toInt().coerceIn(0, maskH - 1)
@@ -457,7 +457,9 @@ class FastSAMSegmentation(private val context: Context) {
         val y2 = ((detection.cy + detection.h / 2) * scale).toInt().coerceIn(0, maskH - 1)
         Log.d(TAG, "  BBox in mask coords: ($x1,$y1)-($x2,$y2)")
 
-        // Apply sigmoid and threshold
+        // Apply sigmoid and threshold to generate proper segmentation mask
+        // Note: We don't clip to bounding box - the prototype coefficients already
+        // encode the proper shape. Clipping would cause rectangular masks.
         val scaleToOutput = MODEL_INPUT_SIZE.toFloat() / maskH
         var positivePixels = 0
 
@@ -466,14 +468,11 @@ class FastSAMSegmentation(private val context: Context) {
                 val srcY = (y / scaleToOutput).toInt().coerceIn(0, maskH - 1)
                 val srcX = (x / scaleToOutput).toInt().coerceIn(0, maskW - 1)
 
-                // Check if inside bounding box (in mask coordinates)
-                if (srcX >= x1 && srcX <= x2 && srcY >= y1 && srcY <= y2) {
-                    val value = tempMask[srcY * maskW + srcX]
-                    val sigmoid = 1.0f / (1.0f + exp(-value))
-                    if (sigmoid > MASK_THRESHOLD) {
-                        mask[y * MODEL_INPUT_SIZE + x] = 255.toByte()
-                        positivePixels++
-                    }
+                val value = tempMask[srcY * maskW + srcX]
+                val sigmoid = 1.0f / (1.0f + exp(-value))
+                if (sigmoid > MASK_THRESHOLD) {
+                    mask[y * MODEL_INPUT_SIZE + x] = 255.toByte()
+                    positivePixels++
                 }
             }
         }
@@ -559,14 +558,16 @@ class FastSAMSegmentation(private val context: Context) {
             for (x in 0 until MODEL_INPUT_SIZE) {
                 val dx = (x - centerX).toFloat() / radiusX
                 val dy = (y - centerY).toFloat() / radiusY
-                if (kotlin.math.abs(dx) < 1.0f && kotlin.math.abs(dy) < 1.0f) {
+                // Use ellipse equation (dx^2 + dy^2 < 1) for circular/elliptical shape
+                // instead of rectangular (abs(dx) < 1 && abs(dy) < 1)
+                if (dx * dx + dy * dy < 1.0f) {
                     mask[y * MODEL_INPUT_SIZE + x] = 255.toByte()
                     count++
                 }
             }
         }
 
-        Log.d(TAG, "Demo mask created with $count pixels")
+        Log.d(TAG, "Demo mask created with $count pixels (elliptical)")
         return mask
     }
 
